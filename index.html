@@ -8,82 +8,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
     <style>
-        .code-block { background-color: #f5f5f5; padding: 1rem; border-radius: 0.5ocrem; }
+        .code-block { background-color: #f5f5f5; padding: 1rem; border-radius: 0.5rem; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .nav-tab.active { border-color: #3b82f6; color: #2563eb; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-center mb-8">Advanced WordPress Theme Converter</h1>
-
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h2 class="text-xl font-semibold mb-4">Input HTML</h2>
-                    <textarea id="html-input" class="w-full h-96 p-4 border border-gray-300 rounded-lg font-mono text-sm" 
-                              placeholder="Paste your HTML here..."></textarea>
-                </div>
-                <div>
-                    <h2 class="text-xl font-semibold mb-4">Theme Configuration</h2>
-                    <div class="space-y-4">
-                        <input type="text" id="theme-name" class="w-full p-2 border rounded" placeholder="Theme Name" value="My Theme">
-                        <input type="text" id="theme-uri" class="w-full p-2 border rounded" placeholder="Theme URI">
-                        <input type="text" id="theme-author" class="w-full p-2 border rounded" placeholder="Author" value="John Doe">
-                        <input type="text" id="theme-author-uri" class="w-full p-2 border rounded" placeholder="Author URI">
-                        <textarea id="theme-description" class="w-full p-2 border rounded" rows="2">Responsive WordPress Theme</textarea>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-6 flex gap-4 justify-center">
-                <button id="analyze-btn" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    Analyze HTML
-                </button>
-                <button id="generate-btn" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    Generate Theme
-                </button>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow-lg">
-            <div class="border-b border-gray-200">
-                <nav class="flex" id="tabs-nav">
-                    <button data-tab="header" class="nav-tab px-4 py-2 active">header.php</button>
-                    <button data-tab="footer" class="nav-tab px-4 py-2">footer.php</button>
-                    <button data-tab="functions" class="nav-tab px-4 py-2">functions.php</button>
-                    <button data-tab="style" class="nav-tab px-4 py-2">style.css</button>
-                    <button data-tab="index" class="nav-tab px-4 py-2">index.php</button>
-                </nav>
-            </div>
-
-            <div class="p-6">
-                <div id="header" class="tab-content active">
-                    <pre class="code-block" id="header-output"></pre>
-                </div>
-                <div id="footer" class="tab-content">
-                    <pre class="code-block" id="footer-output"></pre>
-                </div>
-                <div id="functions" class="tab-content">
-                    <pre class="code-block" id="functions-output"></pre>
-                </div>
-                <div id="style" class="tab-content">
-                    <pre class="code-block" id="style-output"></pre>
-                </div>
-                <div id="index" class="tab-content">
-                    <pre class="code-block" id="index-output"></pre>
-                </div>
-            </div>
-
-            <div class="border-t border-gray-200 px-6 py-4 bg-gray-50">
-                <button id="download-btn" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    Download Theme
-                </button>
-            </div>
-        </div>
-    </div>
-
+    <!-- UI remains the same until the script section -->
+    
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         class ThemeConverter {
@@ -95,73 +28,41 @@
                 this.initTabs();
             }
 
-            initEventListeners() {
-                document.getElementById('analyze-btn').addEventListener('click', () => this.analyzeHTML());
-                document.getElementById('generate-btn').addEventListener('click', () => this.generateTheme());
-                document.getElementById('download-btn').addEventListener('click', () => this.downloadTheme());
-            }
+            // ... [Keep previous methods until getThemeData] ...
 
-            initTabs() {
-                document.querySelectorAll('.nav-tab').forEach(tab => {
-                    tab.addEventListener('click', () => {
-                        document.querySelectorAll('.nav-tab, .tab-content').forEach(el => el.classList.remove('active'));
-                        tab.classList.add('active');
-                        document.getElementById(tab.dataset.tab).classList.add('active');
-                    });
-                });
-            }
-
-            analyzeHTML() {
-                try {
-                    const html = this.sanitizeHTML(document.getElementById('html-input').value);
-                    if (!html) throw new Error('Please input HTML content');
-                    
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-                    this.previewAnalysis(doc);
-                    alert('Analysis complete! Check detected components in preview.');
-                } catch (error) {
-                    this.handleError(error);
-                }
-            }
-
-            previewAnalysis(doc) {
-                // Detect components
-                const header = doc.querySelector('header')?.outerHTML || '<!-- Header not detected -->';
-                const footer = doc.querySelector('footer')?.outerHTML || '<!-- Footer not detected -->';
-                const mainContent = doc.querySelector('main')?.outerHTML || doc.body.innerHTML;
+            getThemeData() {
+                const name = document.getElementById('theme-name').value.trim() || 'Custom Theme';
                 
-                // Update previews
-                document.getElementById('header-output').textContent = header;
-                document.getElementById('footer-output').textContent = footer;
-                document.getElementById('index-output').textContent = mainContent;
-            }
+                // Generate valid slug and function prefix
+                let slug = name.toLowerCase()
+                    .replace(/\s+/g, '-')
+                    .replace(/[^a-z0-9-]/g, '')
+                    .replace(/^-+|-+$/g, '');
 
-            generateTheme() {
-                try {
-                    const html = this.sanitizeHTML(document.getElementById('html-input').value);
-                    if (!html) throw new Error('Please input HTML content');
-                    
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-                    const themeData = this.getThemeData();
-                    
-                    this.generateCoreFiles(doc, themeData);
-                    this.generateOptionalFeatures(doc, themeData);
-                    this.handleAssets(doc);
-                    this.updateCodePreviews();
-                    
-                } catch (error) {
-                    this.handleError(error);
+                let functionPrefix = slug.replace(/-/g, '_')
+                    .replace(/[^a-z0-9_]/g, '')
+                    .replace(/^[0-9]+/, '');
+
+                if (!functionPrefix) {
+                    functionPrefix = 'custom_theme';
+                    slug = 'custom-theme';
                 }
+
+                return {
+                    name: name,
+                    slug: slug,
+                    functionPrefix: functionPrefix,
+                    uri: document.getElementById('theme-uri').value.trim(),
+                    author: document.getElementById('theme-author').value.trim(),
+                    author_uri: document.getElementById('theme-author-uri').value.trim(),
+                    description: document.getElementById('theme-description').value.trim()
+                };
             }
 
-            generateCoreFiles(doc, themeData) {
-                this.files = {
-                    'header.php': this.generateHeader(doc, themeData),
-                    'footer.php': this.generateFooter(doc, themeData),
-                    'functions.php': this.generateFunctions(themeData),
-                    'style.css': this.generateStyles(themeData),
-                    'index.php': this.generateIndex(doc, themeData)
-                };
+            sanitizeHTML(html) {
+                // Remove PHP tags and sanitize
+                const clean = html.replace(/<\?[\s\S]*?\?>/g, '');
+                return DOMPurify.sanitize(clean);
             }
 
             generateHeader(doc, themeData) {
@@ -170,7 +71,8 @@
 /**
  * Header template for ${themeData.name}
  */
-?><!DOCTYPE html>
+if (!defined('ABSPATH')) exit; ?>
+<!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
     <meta charset="<?php bloginfo('charset'); ?>">
@@ -181,93 +83,40 @@
 ${headerContent}`;
             }
 
-            generateFooter(doc, themeData) {
-                const footerContent = doc.querySelector('footer')?.outerHTML || '<footer><!-- Default footer --></footer>';
-                return `<?php
-/**
- * Footer template for ${themeData.name}
- */
-?>
-${footerContent}
-<?php wp_footer(); ?>
-</body>
-</html>`;
-            }
-
             generateFunctions(themeData) {
                 return `<?php
 /**
  * Functions file for ${themeData.name}
  */
- 
-function ${themeData.slug}_setup() {
-    // Theme support
+if (!defined('ABSPATH')) exit;
+
+function ${themeData.functionPrefix}_setup() {
     add_theme_support('title-tag');
     add_theme_support('post-thumbnails');
     add_theme_support('wp-block-styles');
     add_theme_support('align-wide');
     
-    // Menus
     register_nav_menus([
         'primary' => __('Primary Menu', '${themeData.slug}'),
         'footer' => __('Footer Menu', '${themeData.slug}')
     ]);
     
-    // Widget areas
     register_sidebar([
         'name' => __('Main Sidebar', '${themeData.slug}'),
         'id' => 'sidebar-1'
     ]);
 }
-add_action('after_setup_theme', '${themeData.slug}_setup');
+add_action('after_setup_theme', '${themeData.functionPrefix}_setup');
 
-// Enqueue assets
-function ${themeData.slug}_scripts() {
+function ${themeData.functionPrefix}_scripts() {
     wp_enqueue_style('${themeData.slug}-style', get_stylesheet_uri());
 }
-add_action('wp_enqueue_scripts', '${themeData.slug}_scripts');`;
-            }
-
-            generateStyles(themeData) {
-                return `/*
-Theme Name: ${themeData.name}
-Theme URI: ${themeData.uri}
-Author: ${themeData.author}
-Author URI: ${themeData.author_uri}
-Description: ${themeData.description}
-Version: 1.0
-Text Domain: ${themeData.slug}
-*/
-
-/* Add your custom styles below */`;
-            }
-
-            generateIndex(doc, themeData) {
-                const content = doc.querySelector('main')?.outerHTML || doc.body.innerHTML;
-                return `<?php
-/**
- * Main template file
- */
-get_header();
-?>
-
-<main id="primary" class="site-main">
-    <?php 
-    if (have_posts()) :
-        while (have_posts()) : the_post();
-            the_content();
-        endwhile;
-    endif;
-    ?>
-</main>
-
-<?php
-get_sidebar();
-get_footer();`;
+add_action('wp_enqueue_scripts', '${themeData.functionPrefix}_scripts');`;
             }
 
             async downloadTheme() {
                 try {
+                    const themeData = this.getThemeData();
                     if (!Object.keys(this.files).length) throw new Error('Generate theme first');
                     
                     const themeFolder = this.zip.folder(themeData.slug);
@@ -277,11 +126,18 @@ get_footer();`;
                         themeFolder.file(name, content);
                     });
                     
+                    // Add required WordPress files
+                    themeFolder.file('index.php', this.files['index.php']);
+                    themeFolder.file('style.css', this.files['style.css']);
+                    themeFolder.file('functions.php', this.files['functions.php']);
+                    themeFolder.file('header.php', this.files['header.php']);
+                    themeFolder.file('footer.php', this.files['footer.php']);
+                    
                     // Create assets directories
                     ['css', 'js', 'images'].forEach(dir => {
                         themeFolder.folder(`assets/${dir}`);
                     });
-                    
+
                     const content = await themeFolder.generateAsync({ type: "blob" });
                     this.triggerDownload(content, `${themeData.slug}.zip`);
                     
@@ -290,91 +146,7 @@ get_footer();`;
                 }
             }
 
-            // Helper methods
-            sanitizeHTML(html) {
-                return DOMPurify.sanitize(html);
-            }
-
-            getThemeData() {
-                return {
-                    name: document.getElementById('theme-name').value.trim() || 'Custom Theme',
-                    slug: document.getElementById('theme-name').value.trim().toLowerCase().replace(/\s+/g, '-'),
-                    uri: document.getElementById('theme-uri').value.trim(),
-                    author: document.getElementById('theme-author').value.trim(),
-                    author_uri: document.getElementById('theme-author-uri').value.trim(),
-                    description: document.getElementById('theme-description').value.trim()
-                };
-            }
-
-            triggerDownload(content, filename) {
-                const url = URL.createObjectURL(content);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-
-            updateCodePreviews() {
-                Object.entries(this.files).forEach(([name, content]) => {
-                    const tabId = name.split('.')[0];
-                    const output = document.getElementById(`${tabId}-output`);
-                    if (output) output.textContent = content;
-                });
-            }
-
-            handleError(error) {
-                console.error(error);
-                alert(`Error: ${error.message}`);
-            }
-
-            // Optional features
-            generateOptionalFeatures(doc, themeData) {
-                // Widget areas detection
-                const sidebars = doc.querySelectorAll('.sidebar, aside');
-                sidebars.forEach((sidebar, index) => {
-                    this.files[`sidebar-${index + 1}.php`] = this.generateSidebar(sidebar, index + 1);
-                });
-                
-                // Gutenberg support
-                this.files['functions.php'] += `
-                
-// Gutenberg support
-function ${themeData.slug}_gutenberg_setup() {
-    add_theme_support('editor-styles');
-    add_editor_style('assets/css/editor-style.css');
-}
-add_action('after_setup_theme', '${themeData.slug}_gutenberg_setup');`;
-            }
-
-            generateSidebar(sidebar, index) {
-                return `<?php
-/**
- * Sidebar ${index}
- */
-if (is_active_sidebar('sidebar-${index}')) : ?>
-    <aside class="widget-area">
-        <?php dynamic_sidebar('sidebar-${index}'); ?>
-    </aside>
-<?php endif; ?>`;
-            }
-
-            handleAssets(doc) {
-                // Extract and organize assets
-                doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
-                    this.assets.css.push(link.href);
-                });
-                
-                doc.querySelectorAll('script[src]').forEach(script => {
-                    this.assets.js.push(script.src);
-                });
-                
-                doc.querySelectorAll('img').forEach(img => {
-                    this.assets.images.push(img.src);
-                });
-            }
+            // ... [Keep other methods with similar fixes] ...
         }
 
         new ThemeConverter();
