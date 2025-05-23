@@ -115,31 +115,36 @@ add_action('wp_enqueue_scripts', '${themeData.functionPrefix}_scripts');`;
             }
 
             async downloadTheme() {
-    try {
-        if (!Object.keys(this.files).length) throw new Error('Generate theme first');
-        
-        // Get theme data before using it
-        const themeData = this.getThemeData();
-        
-        const themeFolder = this.zip.folder(themeData.slug);
-        
-        // Add core files
-        Object.entries(this.files).forEach(([name, content]) => {
-            themeFolder.file(name, content);
-        });
-        
-        // Create assets directories
-        ['css', 'js', 'images'].forEach(dir => {
-            themeFolder.folder(`assets/${dir}`);
-        });
-        
-        const content = await themeFolder.generateAsync({ type: "blob" });
-        this.triggerDownload(content, `${themeData.slug}.zip`);
-        
-    } catch (error) {
-        this.handleError(error);
-    }
-}
+                try {
+                    const themeData = this.getThemeData();
+                    if (!Object.keys(this.files).length) throw new Error('Generate theme first');
+                    
+                    const themeFolder = this.zip.folder(themeData.slug);
+                    
+                    // Add core files
+                    Object.entries(this.files).forEach(([name, content]) => {
+                        themeFolder.file(name, content);
+                    });
+                    
+                    // Add required WordPress files
+                    themeFolder.file('index.php', this.files['index.php']);
+                    themeFolder.file('style.css', this.files['style.css']);
+                    themeFolder.file('functions.php', this.files['functions.php']);
+                    themeFolder.file('header.php', this.files['header.php']);
+                    themeFolder.file('footer.php', this.files['footer.php']);
+                    
+                    // Create assets directories
+                    ['css', 'js', 'images'].forEach(dir => {
+                        themeFolder.folder(`assets/${dir}`);
+                    });
+
+                    const content = await themeFolder.generateAsync({ type: "blob" });
+                    this.triggerDownload(content, `${themeData.slug}.zip`);
+                    
+                } catch (error) {
+                    this.handleError(error);
+                }
+            }
 
             // ... [Keep other methods with similar fixes] ...
         }
