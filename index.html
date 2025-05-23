@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
     <style>
-        .code-block { background-color: #f5f5f5; padding: 1rem; border-radius: 0.5rem; }
+        .code-block { background-color: #f5f5f5; padding: 1rem; border-radius: 0.5ocrem; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .nav-tab.active { border-color: #3b82f6; color: #2563eb; }
@@ -16,27 +16,27 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-center mb-8">HTML to WordPress Theme Converter</h1>
-        
+        <h1 class="text-3xl font-bold text-center mb-8">Advanced WordPress Theme Converter</h1>
+
         <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <h2 class="text-xl font-semibold mb-4">Input Your HTML</h2>
-                    <textarea id="html-input" class="w-full h-64 p-4 border border-gray-300 rounded-lg font-mono text-sm" 
-                              placeholder="<!DOCTYPE html>..."></textarea>
+                    <h2 class="text-xl font-semibold mb-4">Input HTML</h2>
+                    <textarea id="html-input" class="w-full h-96 p-4 border border-gray-300 rounded-lg font-mono text-sm" 
+                              placeholder="Paste your HTML here..."></textarea>
                 </div>
                 <div>
-                    <h2 class="text-xl font-semibold mb-4">Theme Options</h2>
+                    <h2 class="text-xl font-semibold mb-4">Theme Configuration</h2>
                     <div class="space-y-4">
                         <input type="text" id="theme-name" class="w-full p-2 border rounded" placeholder="Theme Name" value="My Theme">
                         <input type="text" id="theme-uri" class="w-full p-2 border rounded" placeholder="Theme URI">
                         <input type="text" id="theme-author" class="w-full p-2 border rounded" placeholder="Author" value="John Doe">
                         <input type="text" id="theme-author-uri" class="w-full p-2 border rounded" placeholder="Author URI">
-                        <textarea id="theme-description" class="w-full p-2 border rounded" rows="2">A custom WordPress theme</textarea>
+                        <textarea id="theme-description" class="w-full p-2 border rounded" rows="2">Responsive WordPress Theme</textarea>
                     </div>
                 </div>
             </div>
-            
+
             <div class="mt-6 flex gap-4 justify-center">
                 <button id="analyze-btn" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                     Analyze HTML
@@ -57,7 +57,7 @@
                     <button data-tab="index" class="nav-tab px-4 py-2">index.php</button>
                 </nav>
             </div>
-            
+
             <div class="p-6">
                 <div id="header" class="tab-content active">
                     <pre class="code-block" id="header-output"></pre>
@@ -75,7 +75,7 @@
                     <pre class="code-block" id="index-output"></pre>
                 </div>
             </div>
-            
+
             <div class="border-t border-gray-200 px-6 py-4 bg-gray-50">
                 <button id="download-btn" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                     Download Theme
@@ -90,6 +90,7 @@
             constructor() {
                 this.zip = new JSZip();
                 this.files = {};
+                this.assets = { css: [], js: [], images: [] };
                 this.initEventListeners();
                 this.initTabs();
             }
@@ -103,74 +104,68 @@
             initTabs() {
                 document.querySelectorAll('.nav-tab').forEach(tab => {
                     tab.addEventListener('click', () => {
-                        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                        
-                        const tabId = tab.dataset.tab;
+                        document.querySelectorAll('.nav-tab, .tab-content').forEach(el => el.classList.remove('active'));
                         tab.classList.add('active');
-                        document.getElementById(tabId).classList.add('active');
+                        document.getElementById(tab.dataset.tab).classList.add('active');
                     });
                 });
             }
 
             analyzeHTML() {
                 try {
-                    const html = this.sanitizeInput(document.getElementById('html-input').value);
+                    const html = this.sanitizeHTML(document.getElementById('html-input').value);
                     if (!html) throw new Error('Please input HTML content');
                     
                     const doc = new DOMParser().parseFromString(html, 'text/html');
-                    this.showPreviewAnalysis(doc);
-                    
+                    this.previewAnalysis(doc);
+                    alert('Analysis complete! Check detected components in preview.');
                 } catch (error) {
-                    this.showError(error);
+                    this.handleError(error);
                 }
             }
 
-            showPreviewAnalysis(doc) {
-                // Clear previous previews
-                document.querySelectorAll('.code-block').forEach(el => el.textContent = '');
-                
+            previewAnalysis(doc) {
                 // Detect components
-                const header = doc.querySelector('header')?.outerHTML || '<!-- No header detected -->';
-                const footer = doc.querySelector('footer')?.outerHTML || '<!-- No footer detected -->';
-                const mainContent = doc.querySelector('main')?.outerHTML || doc.body?.innerHTML;
+                const header = doc.querySelector('header')?.outerHTML || '<!-- Header not detected -->';
+                const footer = doc.querySelector('footer')?.outerHTML || '<!-- Footer not detected -->';
+                const mainContent = doc.querySelector('main')?.outerHTML || doc.body.innerHTML;
                 
-                // Show previews
+                // Update previews
                 document.getElementById('header-output').textContent = header;
                 document.getElementById('footer-output').textContent = footer;
                 document.getElementById('index-output').textContent = mainContent;
-                
-                alert('Analysis complete! Check header/footer tabs for detected content.');
             }
 
             generateTheme() {
                 try {
-                    const html = this.sanitizeInput(document.getElementById('html-input').value);
+                    const html = this.sanitizeHTML(document.getElementById('html-input').value);
                     if (!html) throw new Error('Please input HTML content');
                     
                     const doc = new DOMParser().parseFromString(html, 'text/html');
-                    this.createThemeFiles(doc);
+                    const themeData = this.getThemeData();
+                    
+                    this.generateCoreFiles(doc, themeData);
+                    this.generateOptionalFeatures(doc, themeData);
+                    this.handleAssets(doc);
                     this.updateCodePreviews();
                     
                 } catch (error) {
-                    this.showError(error);
+                    this.handleError(error);
                 }
             }
 
-            createThemeFiles(doc) {
-                const themeData = this.getThemeData();
-                
+            generateCoreFiles(doc, themeData) {
                 this.files = {
-                    header: this.generateHeader(doc, themeData),
-                    footer: this.generateFooter(doc, themeData),
-                    functions: this.generateFunctions(themeData),
-                    style: this.generateStyles(themeData),
-                    index: this.generateIndex(doc, themeData)
+                    'header.php': this.generateHeader(doc, themeData),
+                    'footer.php': this.generateFooter(doc, themeData),
+                    'functions.php': this.generateFunctions(themeData),
+                    'style.css': this.generateStyles(themeData),
+                    'index.php': this.generateIndex(doc, themeData)
                 };
             }
 
             generateHeader(doc, themeData) {
-                const headerContent = doc.querySelector('header')?.outerHTML || '<header><!-- Default header content --></header>';
+                const headerContent = doc.querySelector('header')?.outerHTML || '<header><!-- Default header --></header>';
                 return `<?php
 /**
  * Header template for ${themeData.name}
@@ -187,7 +182,7 @@ ${headerContent}`;
             }
 
             generateFooter(doc, themeData) {
-                const footerContent = doc.querySelector('footer')?.outerHTML || '<footer><!-- Default footer content --></footer>';
+                const footerContent = doc.querySelector('footer')?.outerHTML || '<footer><!-- Default footer --></footer>';
                 return `<?php
 /**
  * Footer template for ${themeData.name}
@@ -202,32 +197,53 @@ ${footerContent}
             generateFunctions(themeData) {
                 return `<?php
 /**
- * Theme functions file for ${themeData.name}
+ * Functions file for ${themeData.name}
  */
  
 function ${themeData.slug}_setup() {
+    // Theme support
     add_theme_support('title-tag');
     add_theme_support('post-thumbnails');
+    add_theme_support('wp-block-styles');
+    add_theme_support('align-wide');
+    
+    // Menus
     register_nav_menus([
-        'primary' => __('Primary Menu', '${themeData.slug}')
+        'primary' => __('Primary Menu', '${themeData.slug}'),
+        'footer' => __('Footer Menu', '${themeData.slug}')
+    ]);
+    
+    // Widget areas
+    register_sidebar([
+        'name' => __('Main Sidebar', '${themeData.slug}'),
+        'id' => 'sidebar-1'
     ]);
 }
-add_action('after_setup_theme', '${themeData.slug}_setup');`;
+add_action('after_setup_theme', '${themeData.slug}_setup');
+
+// Enqueue assets
+function ${themeData.slug}_scripts() {
+    wp_enqueue_style('${themeData.slug}-style', get_stylesheet_uri());
+}
+add_action('wp_enqueue_scripts', '${themeData.slug}_scripts');`;
             }
 
             generateStyles(themeData) {
                 return `/*
 Theme Name: ${themeData.name}
+Theme URI: ${themeData.uri}
 Author: ${themeData.author}
+Author URI: ${themeData.author_uri}
 Description: ${themeData.description}
 Version: 1.0
+Text Domain: ${themeData.slug}
 */
 
 /* Add your custom styles below */`;
             }
 
             generateIndex(doc, themeData) {
-                const content = doc.querySelector('main')?.outerHTML || doc.body?.innerHTML;
+                const content = doc.querySelector('main')?.outerHTML || doc.body.innerHTML;
                 return `<?php
 /**
  * Main template file
@@ -235,53 +251,66 @@ Version: 1.0
 get_header();
 ?>
 
-<main id="main-content">
-${content}
+<main id="primary" class="site-main">
+    <?php 
+    if (have_posts()) :
+        while (have_posts()) : the_post();
+            the_content();
+        endwhile;
+    endif;
+    ?>
 </main>
 
 <?php
-get_footer();
-?>`;
+get_sidebar();
+get_footer();`;
             }
 
             async downloadTheme() {
                 try {
                     if (!Object.keys(this.files).length) throw new Error('Generate theme first');
                     
-                    const themeFolder = this.zip.folder(this.getThemeData().slug);
-                    Object.entries(this.files).forEach(([name, content]) => {
-                        themeFolder.file(`${name}.php`, content);
-                    });
-                    themeFolder.file("style.css", this.files.style);
+                    const themeFolder = this.zip.folder(themeData.slug);
                     
-                    const content = await this.zip.generateAsync({ type: "blob" });
-                    this.triggerDownload(content);
+                    // Add core files
+                    Object.entries(this.files).forEach(([name, content]) => {
+                        themeFolder.file(name, content);
+                    });
+                    
+                    // Create assets directories
+                    ['css', 'js', 'images'].forEach(dir => {
+                        themeFolder.folder(`assets/${dir}`);
+                    });
+                    
+                    const content = await themeFolder.generateAsync({ type: "blob" });
+                    this.triggerDownload(content, `${themeData.slug}.zip`);
                     
                 } catch (error) {
-                    this.showError(error);
+                    this.handleError(error);
                 }
             }
 
             // Helper methods
-            sanitizeInput(html) {
+            sanitizeHTML(html) {
                 return DOMPurify.sanitize(html);
             }
 
             getThemeData() {
-                const name = document.getElementById('theme-name').value.trim() || 'My Theme';
                 return {
-                    name,
-                    slug: name.toLowerCase().replace(/ /g, '-'),
+                    name: document.getElementById('theme-name').value.trim() || 'Custom Theme',
+                    slug: document.getElementById('theme-name').value.trim().toLowerCase().replace(/\s+/g, '-'),
+                    uri: document.getElementById('theme-uri').value.trim(),
                     author: document.getElementById('theme-author').value.trim(),
+                    author_uri: document.getElementById('theme-author-uri').value.trim(),
                     description: document.getElementById('theme-description').value.trim()
                 };
             }
 
-            triggerDownload(content) {
+            triggerDownload(content, filename) {
                 const url = URL.createObjectURL(content);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${this.getThemeData().slug}.zip`;
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -290,18 +319,64 @@ get_footer();
 
             updateCodePreviews() {
                 Object.entries(this.files).forEach(([name, content]) => {
-                    const output = document.getElementById(`${name}-output`);
+                    const tabId = name.split('.')[0];
+                    const output = document.getElementById(`${tabId}-output`);
                     if (output) output.textContent = content;
                 });
             }
 
-            showError(error) {
+            handleError(error) {
                 console.error(error);
                 alert(`Error: ${error.message}`);
             }
+
+            // Optional features
+            generateOptionalFeatures(doc, themeData) {
+                // Widget areas detection
+                const sidebars = doc.querySelectorAll('.sidebar, aside');
+                sidebars.forEach((sidebar, index) => {
+                    this.files[`sidebar-${index + 1}.php`] = this.generateSidebar(sidebar, index + 1);
+                });
+                
+                // Gutenberg support
+                this.files['functions.php'] += `
+                
+// Gutenberg support
+function ${themeData.slug}_gutenberg_setup() {
+    add_theme_support('editor-styles');
+    add_editor_style('assets/css/editor-style.css');
+}
+add_action('after_setup_theme', '${themeData.slug}_gutenberg_setup');`;
+            }
+
+            generateSidebar(sidebar, index) {
+                return `<?php
+/**
+ * Sidebar ${index}
+ */
+if (is_active_sidebar('sidebar-${index}')) : ?>
+    <aside class="widget-area">
+        <?php dynamic_sidebar('sidebar-${index}'); ?>
+    </aside>
+<?php endif; ?>`;
+            }
+
+            handleAssets(doc) {
+                // Extract and organize assets
+                doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+                    this.assets.css.push(link.href);
+                });
+                
+                doc.querySelectorAll('script[src]').forEach(script => {
+                    this.assets.js.push(script.src);
+                });
+                
+                doc.querySelectorAll('img').forEach(img => {
+                    this.assets.images.push(img.src);
+                });
+            }
         }
 
-        // Initialize converter
         new ThemeConverter();
     });
     </script>
