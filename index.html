@@ -38,12 +38,17 @@
                 </div>
             </div>
 
+            <div class="mt-4">
+                <label for="assets-zip" class="block text-sm font-medium text-gray-700">Upload Assets ZIP (optional)</label>
+                <input type="file" id="assets-zip" accept=".zip" class="mt-1">
+            </div>
+
             <div class="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
-                <button id="analyze-btn" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    Analyze Code
-                </button>
                 <button id="generate-btn" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                     Generate Theme
+                </button>
+                <button id="download-btn" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Download Theme (.zip)
                 </button>
             </div>
         </div>
@@ -76,12 +81,6 @@
                     <pre class="code-block" id="index-output"></pre>
                 </div>
             </div>
-
-            <div class="border-t border-gray-200 px-6 py-4 bg-gray-50">
-                <button id="download-btn" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 w-full sm:w-auto">
-                    Download Theme (.zip)
-                </button>
-            </div>
         </div>
     </div>
 
@@ -91,14 +90,15 @@
             constructor() {
                 this.zip = new JSZip();
                 this.files = {};
-                this.assets = { css: [], js: [], images: [] };
+                this.assetsZip = null;
+                this.styles = [];
+                this.scripts = [];
                 this.themeData = {};
                 this.initEventListeners();
                 this.initTabs();
             }
 
             initEventListeners() {
-                document.getElementById('analyze-btn').addEventListener('click', () => this.analyzeHTML());
                 document.getElementById('generate-btn').addEventListener('click', () => this.generateTheme());
                 document.getElementById('download-btn').addEventListener('click', () => this.downloadTheme());
             }
@@ -106,39 +106,14 @@
             initTabs() {
                 document.querySelectorAll('.nav-tab').forEach(tab => {
                     tab.addEventListener('click', () => {
-                        document.querySelectorAll('.nav-tab, .tab-content').forEach(el => {
-                            el.classList.remove('active');
-                        });
+                        document.querySelectorAll('.nav-tab, .tab-content').forEach(el => el.classList.remove('active'));
                         tab.classList.add('active');
                         document.getElementById(tab.dataset.tab).classList.add('active');
                     });
                 });
             }
 
-            analyzeHTML() {
-                try {
-                    const html = this.sanitizeHTML(document.getElementById('html-input').value);
-                    if (!html) throw new Error('Please input HTML content');
-                    
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-                    this.previewAnalysis(doc);
-                    alert('Analysis complete! Check the preview tabs.');
-                } catch (error) {
-                    this.handleError(error);
-                }
-            }
-
-            previewAnalysis(doc) {
-                const header = doc.querySelector('header')?.outerHTML || '<!-- No header detected -->';
-                const footer = doc.querySelector('footer')?.outerHTML || '<!-- No footer detected -->';
-                const mainContent = doc.querySelector('main')?.outerHTML || doc.body.innerHTML;
-                
-                document.getElementById('header-output').textContent = header;
-                document.getElementById('footer-output').textContent = footer;
-                document.getElementById('index-output').textContent = mainContent;
-            }
-
-            generateTheme() {
+            async generateTheme() {
                 try {
                     const html = this.sanitizeHTML(document.getElementById('html-input').value);
                     if (!html) throw new Error('Please input HTML content');
@@ -146,15 +121,46 @@
                     const doc = new DOMParser().parseFromString(html, 'text/html');
                     this.themeData = this.getThemeData();
                     
+                    this.assetsZip = await this.loadAssetsZip();
+                    this.extractAssets(doc);
+                    
                     this.generateCoreFiles(doc);
-                    this.generateOptionalFeatures(doc);
-                    this.handleAssets(doc);
                     this.updateCodePreviews();
                     
-                    alert('Theme generated successfully! Check files before downloading.');
+                    alert('Theme generated successfully! Check the preview tabs.');
                 } catch (error) {
                     this.handleError(error);
                 }
+            }
+
+            async loadAssetsZip() {
+                const input = document.getElementById('assets-zip');
+                if (input.files.length > 0) {
+                    const file = input.files[0];
+                    return await JSZip.loadAsync(file);
+                }
+                return null;
+            }
+
+            extractAssets(doc) {
+                const isRelative = url => !url.startsWith('http') && !url.startsWith('//');
+                
+                this.styles = Array.from(doc.querySelectorAll('head link[rel="stylesheet"]'))
+                    .filter(link => isRelative(link.getAttribute('href')))
+                    .map(link => {
+                        const url = link.getAttribute('href');
+                        link.remove();
+                        return url;
+                    });
+                
+                this.scripts = Array.from(doc.querySelectorAll('script[src]'))
+                    .filter(script => isRelative(script.getAttribute('src')))
+                    .map(script => {
+                        const url = script.getAttribute('src');
+                        const inFooter = script.closest('body') !== null;
+                        script.remove();
+                        return { url, inFooter };
+                    });
             }
 
             generateCoreFiles(doc) {
@@ -199,6 +205,25 @@ ${footerContent}
             }
 
             generateFunctions() {
+                let enqueueCode = '';
+                if (this.styles.length > 0) {
+                    enqueueCode += '// Enqueue styles\n';
+                    this.styles.forEach((style, index) => {
+                        const handle = `${this.themeData.slug}-style-${index}`;
+                        const src = `get_template_directory_uri() . '/${style}'`;
+                        enqueueCode += `wp_enqueue_style('${handle}', ${src});\n`;
+                    });
+                }
+                if (this.scripts.length > 0) {
+                    enqueueCode += '// Enqueue scripts\n';
+                    this.scripts.forEach((script, index) => {
+                        const handle = `${this.themeData.slug}-script-${index}`;
+                        const src = `get_template_directory_uri() . '/${script.url}'`;
+                        const inFooter = script.inFooter ? 'true' : 'false';
+                        enqueueCode += `wp_enqueue_script('${handle}', ${src}, array(), false, ${inFooter});\n`;
+                    });
+                }
+                
                 return `<?php
 /**
  * Theme functions for ${this.themeData.name}
@@ -206,45 +231,19 @@ ${footerContent}
 if (!defined('ABSPATH')) exit;
 
 function ${this.themeData.functionPrefix}_setup() {
-    // Theme supports
     add_theme_support('title-tag');
     add_theme_support('post-thumbnails');
-    add_theme_support('html5', [
-        'search-form',
-        'comment-form',
-        'comment-list',
-        'gallery',
-        'caption',
-    ]);
-    
-    // Register menus
-    register_nav_menus([
-        'primary' => __('Primary Menu', '${this.themeData.slug}'),
-        'footer'  => __('Footer Menu', '${this.themeData.slug}')
-    ]);
-    
-    // Register sidebar
-    register_sidebar([
-        'name'          => __('Main Sidebar', '${this.themeData.slug}'),
-        'id'            => 'sidebar-1',
-        'description'   => __('Add widgets here', '${this.themeData.slug}'),
-        'before_widget' => '<section id="%1$s" class="widget %2$s">',
-        'after_widget'  => '</section>',
-        'before_title'  => '<h2 class="widget-title">',
-        'after_title'   => '</h2>',
-    ]);
+    add_theme_support('html5', ['search-form', 'comment-form', 'comment-list', 'gallery', 'caption']);
+    register_nav_menus(['primary' => __('Primary Menu', '${this.themeData.slug}'), 'footer' => __('Footer Menu', '${this.themeData.slug}')]);
+    register_sidebar(['name' => __('Main Sidebar', '${this.themeData.slug}'), 'id' => 'sidebar-1', 'before_widget' => '<section class="widget">', 'after_widget' => '</section>', 'before_title' => '<h2 class="widget-title">', 'after_title' => '</h2>']);
 }
 add_action('after_setup_theme', '${this.themeData.functionPrefix}_setup');
 
-function ${this.themeData.functionPrefix}_scripts() {
-    wp_enqueue_style(
-        '${this.themeData.slug}-style',
-        get_stylesheet_uri(),
-        [],
-        wp_get_theme()->get('Version')
-    );
+function ${this.themeData.functionPrefix}_enqueue_assets() {
+    ${enqueueCode}
 }
-add_action('wp_enqueue_scripts', '${this.themeData.functionPrefix}_scripts');`;
+add_action('wp_enqueue_scripts', '${this.themeData.functionPrefix}_enqueue_assets');
+`;
             }
 
             generateStyleCSS() {
@@ -262,8 +261,7 @@ License: GNU General Public License v2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: ${this.themeData.slug}
 */
-
-/* Add your custom styles below */`;
+`;
             }
 
             generateIndex(doc) {
@@ -274,42 +272,34 @@ Text Domain: ${this.themeData.slug}
  */
 get_header();
 ?>
-
 <main id="primary" class="site-main">
-    <?php if (have_posts()) : ?>
-        <?php while (have_posts()) : the_post(); ?>
-            <?php the_content(); ?>
-        <?php endwhile; ?>
-    <?php endif; ?>
+    ${content}
 </main>
-
 <?php
 get_sidebar();
-get_footer();`;
+get_footer();
+`;
             }
 
             async downloadTheme() {
                 try {
-                    if (!Object.keys(this.files).length) {
-                        throw new Error('Please generate theme first');
-                    }
+                    if (!Object.keys(this.files).length) throw new Error('Please generate theme first');
                     
                     const themeFolder = this.zip.folder(this.themeData.slug);
+                    Object.entries(this.files).forEach(([fileName, content]) => themeFolder.file(fileName, content));
                     
-                    // Add core theme files
-                    Object.entries(this.files).forEach(([fileName, content]) => {
-                        themeFolder.file(fileName, content);
-                    });
+                    if (this.assetsZip) {
+                        const files = this.assetsZip.files;
+                        for (const [path, file] of Object.entries(files)) {
+                            if (!file.dir) {
+                                const content = await file.async('blob');
+                                themeFolder.file(path, content);
+                            }
+                        }
+                    }
                     
-                    // Create empty directories
-                    ['css', 'js', 'images'].forEach(dir => {
-                        themeFolder.folder(`assets/${dir}`);
-                    });
-                    
-                    // Generate ZIP file
-                    const content = await themeFolder.generateAsync({ type: "blob" });
+                    const content = await this.zip.generateAsync({ type: "blob" });
                     this.triggerDownload(content, `${this.themeData.slug}.zip`);
-                    
                 } catch (error) {
                     this.handleError(error);
                 }
@@ -317,30 +307,16 @@ get_footer();`;
 
             getThemeData() {
                 const name = document.getElementById('theme-name').value.trim() || 'Custom Theme';
-                
-                // Generate valid slug
-                let slug = name
-                    .toLowerCase()
-                    .replace(/\s+/g, '-')
-                    .replace(/[^a-z0-9-]/g, '')
-                    .replace(/^-+/, '')
-                    .replace(/-+$/, '');
-                
-                // Generate function prefix
-                let functionPrefix = slug
-                    .replace(/-/g, '_')
-                    .replace(/[^a-z0-9_]/g, '')
-                    .replace(/^\d+/, '');
-                
+                let slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                let functionPrefix = slug.replace(/-/g, '_').replace(/[^a-z0-9_]/g, '');
                 if (!functionPrefix) {
                     functionPrefix = 'custom_theme';
                     slug = 'custom-theme';
                 }
-
                 return {
-                    name: name,
-                    slug: slug,
-                    functionPrefix: functionPrefix,
+                    name,
+                    slug,
+                    functionPrefix,
                     uri: document.getElementById('theme-uri').value.trim(),
                     author: document.getElementById('theme-author').value.trim(),
                     author_uri: document.getElementById('theme-author-uri').value.trim(),
@@ -349,7 +325,6 @@ get_footer();`;
             }
 
             sanitizeHTML(html) {
-                // Remove PHP tags and sanitize
                 const cleanHTML = html.replace(/<\?[\s\S]*?\?>/g, '');
                 return DOMPurify.sanitize(cleanHTML);
             }
@@ -369,9 +344,7 @@ get_footer();`;
                 Object.entries(this.files).forEach(([fileName, content]) => {
                     const tabId = fileName.split('.')[0];
                     const outputElement = document.getElementById(`${tabId}-output`);
-                    if (outputElement) {
-                        outputElement.textContent = content;
-                    }
+                    if (outputElement) outputElement.textContent = content;
                 });
             }
 
@@ -379,44 +352,8 @@ get_footer();`;
                 console.error('Error:', error);
                 alert(`Error: ${error.message}`);
             }
-
-            generateOptionalFeatures(doc) {
-                // Generate sidebar templates
-                const sidebars = doc.querySelectorAll('.sidebar, aside');
-                sidebars.forEach((sidebar, index) => {
-                    this.files[`sidebar-${index + 1}.php`] = this.generateSidebar(index + 1);
-                });
-            }
-
-            generateSidebar(index) {
-                return `<?php
-/**
- * Sidebar ${index} template
- */
-if (is_active_sidebar('sidebar-${index}')) : ?>
-    <aside class="sidebar-${index} widget-area">
-        <?php dynamic_sidebar('sidebar-${index}'); ?>
-    </aside>
-<?php endif; ?>`;
-            }
-
-            handleAssets(doc) {
-                // Extract asset URLs
-                doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
-                    this.assets.css.push(link.href);
-                });
-                
-                doc.querySelectorAll('script[src]').forEach(script => {
-                    this.assets.js.push(script.src);
-                });
-                
-                doc.querySelectorAll('img').forEach(img => {
-                    this.assets.images.push(img.src);
-                });
-            }
         }
 
-        // Initialize converter
         new ThemeConverter();
     });
     </script>
