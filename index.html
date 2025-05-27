@@ -13,6 +13,15 @@
         .tab-content.active { display: block; }
         .nav-tab { border-bottom: 2px solid transparent; }
         .nav-tab.active { border-color: #3b82f6; color: #2563eb; }
+        .error-message { 
+            display: none; 
+            color: #dc2626; 
+            font-size: 0.875rem; 
+            margin-top: 0.5rem; 
+        }
+        .error-message.visible { 
+            display: block; 
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -25,6 +34,7 @@
                     <h2 class="text-xl font-semibold mb-4">Input HTML</h2>
                     <textarea id="html-input" class="w-full h-96 p-4 border border-gray-300 rounded-lg font-mono text-sm" 
                               placeholder="Paste your HTML here..."></textarea>
+                    <div id="html-error" class="error-message">Please input HTML content before generating the theme.</div>
                 </div>
                 <div>
                     <h2 class="text-xl font-semibold mb-4">Theme Settings</h2>
@@ -44,10 +54,10 @@
             </div>
 
             <div class="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
-                <button id="generate-btn" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                <button id="generate-btn" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
                     Generate Theme
                 </button>
-                <button id="download-btn" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                <button id="download-btn" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                     Download Theme (.zip)
                 </button>
             </div>
@@ -96,11 +106,28 @@
                 this.themeData = {};
                 this.initEventListeners();
                 this.initTabs();
+                this.initInputValidation();
             }
 
             initEventListeners() {
                 document.getElementById('generate-btn').addEventListener('click', () => this.generateTheme());
                 document.getElementById('download-btn').addEventListener('click', () => this.downloadTheme());
+            }
+
+            initInputValidation() {
+                const htmlInput = document.getElementById('html-input');
+                const generateBtn = document.getElementById('generate-btn');
+                const htmlError = document.getElementById('html-error');
+
+                htmlInput.addEventListener('input', () => {
+                    const isEmpty = !htmlInput.value.trim();
+                    generateBtn.disabled = isEmpty;
+                    htmlError.classList.toggle('visible', isEmpty);
+                });
+
+                // Initial state
+                generateBtn.disabled = !htmlInput.value.trim();
+                htmlError.classList.toggle('visible', !htmlInput.value.trim());
             }
 
             initTabs() {
@@ -115,8 +142,10 @@
 
             async generateTheme() {
                 try {
-                    const html = this.sanitizeHTML(document.getElementById('html-input').value);
-                    if (!html) throw new Error('Please input HTML content');
+                    const html = this.sanitizeHTML(document.getElementById('html-input').value.trim());
+                    if (!html) {
+                        throw new Error('Please input HTML content before generating the theme.');
+                    }
                     
                     const doc = new DOMParser().parseFromString(html, 'text/html');
                     this.themeData = this.getThemeData();
@@ -127,7 +156,10 @@
                     this.generateCoreFiles(doc);
                     this.updateCodePreviews();
                     
-                    alert('Theme generated successfully! Check the preview tabs.');
+                    // Enable download button after successful generation
+                    document.getElementById('download-btn').disabled = false;
+                    
+                    alert('Theme generated successfully! Click "Download Theme" to get your WordPress theme.');
                 } catch (error) {
                     this.handleError(error);
                 }
@@ -609,7 +641,9 @@ get_footer();`;
 
             handleError(error) {
                 console.error('Error:', error);
-                alert(`Error: ${error.message}`);
+                const htmlError = document.getElementById('html-error');
+                htmlError.textContent = error.message;
+                htmlError.classList.add('visible');
             }
 
             async downloadTheme() {
@@ -729,7 +763,8 @@ get_footer();`;
             get_search_form();
         else :
             ?>
-            <p><?php esc_html_e('It seems we can&rsquo;t find what you&rsquo;re looking for. Perhaps searching can help.', '${this.themeData.slug}'); ?></p>
+            <p><?php esc_html_e('It seems we can&rsquo;t find what you&rsquo;re looking for. Perhaps searching can help.', '${this.th
+emeData.slug}'); ?></p>
             <?php
             get_search_form();
         endif;
